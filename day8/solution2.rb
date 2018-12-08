@@ -7,13 +7,13 @@ class Node
     @children.push child
   end
   def add_meta(meta)
-    @metas.push meta-1
+    @metas.push meta
   end
   def value
     @children.any? ? value_of_children : @metas.sum
   end
   def value_of_children
-    @metas.map {|m| @children[m]}
+    @metas.map {|m| @children[m-1]}
       .reject(&:nil?)
       .map(&:value)
       .sum
