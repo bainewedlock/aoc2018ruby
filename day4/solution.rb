@@ -6,40 +6,49 @@ class Solver
     end
     report
   end
+
   def do_line(line)
-    line.match /^\[(\S+) \d+:(\d+)\] (.*)$/
-    @date = $1
-    @minute = $2.to_i
-    do_message $3
+    match_data = /^\[(\S+) \d+:(\d+)\] (.*)$/.match line
+    @date = match_data[1]
+    @minute = match_data[2].to_i
+    do_message match_data[3]
   end
+
   def do_message(message)
     case message
-    when /Guard #(\d+) begins shift/
-      do_guard $1.to_i
     when /wakes up/
       do_wake
     when /falls asleep/
       do_sleep
+    else
+      do_guard message[/Guard #(\d+) begins shift/, 1].to_i
     end
   end
-  def do_guard(n)
-    @guard = n
+
+  def do_guard(guard)
+    @guard = guard
   end
+
   def do_sleep
     @sleep_start = @minute
   end
+
   def do_wake
-    (@sleep_start...@minute).each do |m|
-      @records.push({ date: @date, guard: @guard, minute: m })
+    (@sleep_start...@minute).each do |minute|
+      record = { date: @date, guard: @guard, minute: minute }
+      @records.push record
     end
   end
+
   def report
-    (g, m) = @records
-      .group_by{|x|[x[:guard], x[:minute]]}
-      .max_by{|k,v|v.size}
+    (guard, minute) =
+      @records
+      .group_by { |record| [record[:guard], record[:minute]] }
+      .max_by { |_, records| records.size }
       .first
-    puts "#{g}x#{m}=#{g*m}"
+    puts "#{guard}x#{minute}=#{guard * minute}"
   end
 end
 
-Solver.new.input_lines(File.readlines("input1.txt").map(&:chomp))
+Solver.new.input_lines(File.readlines('input1.txt').map(&:chomp))
+

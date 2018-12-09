@@ -16,4 +16,4 @@ class Solver
   end
 end
 
-Solver.new.input_line(File.read("input1.txt"))
+Solver.new.input_line(File.read("input0.txt"))
