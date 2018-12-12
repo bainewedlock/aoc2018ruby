@@ -13,8 +13,8 @@ class Solver
 
   def start
     matrix = Hash.new 0
-    1.upto(300).each do |x|
-      1.upto(300).each do |y|
+    1.upto(300).each do |y|
+      1.upto(300).each do |x|
         p = calc_power(x, y)
         -2.upto(0).each do |dx|
           -2.upto(0).each do |dy|
@@ -23,8 +23,10 @@ class Solver
         end
       end
     end
-    matrix.sort_by{|k,v| -v}.first
+    matrix.sort_by{|k,v| -v}.first.first
   end
 end
 
-p Solver.new(1133).start
+puts Solver.new(1133).start
+
+
