@@ -1,45 +1,15 @@
 class TextParser
   def initialize(lines)
     parse(lines)
-    tick_count = 0
     loop do
-      # debug
-      tick_count += 1
       tick
       break if @carts.size <= 1
     end
     puts "remaining cart location: #{@carts[0].pos}"
-    puts "tick_count:#{tick_count}"
-  end
-  def debug
-    maxx = @tracks.keys.map(&:first).max
-    maxy = @tracks.keys.map(&:last).max
-    (0..maxy).each do |y|
-      (0..maxx).each do |x|
-        if @carts.any? { |cart| cart.pos == [x, y] }
-          print '#'
-          next
-        end
-        if @tracks.include? [x, y]
-          print '|'
-        else
-          print ' '
-        end
-      end
-      puts
-    end
-    puts
   end
   def tick
-    # wrong: 105,39
-    # wrong: 58,42
-    # wrong: 117,79
-    # wrong: 13,78
-    # test: 136, 8
     crashed_carts = []
-    @carts.sort_by! do |cart|
-      cart.pos.reverse
-    end
+    @carts.sort_by! do |cart| cart.pos.reverse end
     occupied = @carts.map(&:pos)
     @carts.each do |cart|
       occupied.delete(cart.pos)
@@ -47,10 +17,10 @@ class TextParser
         @tracks[pos].possible_directions_for(direction)
       end
       if occupied.include? cart.pos
-        both_crashed = @carts.select { |test| test.pos == cart.pos }
-        crashed_carts.push cart # current moving crashes first(?)
-        crashed_carts.push [both_crashed-[cart]].first
-        # crashed_carts += both_crashed
+        other = (@carts - [cart]).find { |test| test.pos == cart.pos }
+        crashed_carts.push cart
+        crashed_carts.push other
+        occupied.delete(other.pos)
       else
         occupied.push cart.pos
       end
