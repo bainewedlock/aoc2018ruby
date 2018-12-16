@@ -1,6 +1,64 @@
 # frozen_string_literal: true
 
 class Solver
+  def calculate_move(start, targets)
+    paths = [[[start], []]]
+    visited = [start]
+    nearest = nil
+    candidates = nil
+    loop do
+      new_paths = []
+      paths.each do |pos, steps|
+        pos.last.neighbours_with_step.map do |neighbour, step|
+          next if visited.include?(neighbour) or !@floors.include?(neighbour)
+          new_paths.push [pos + [neighbour], steps + [step]]
+          visited.push neighbour
+        end
+      end
+      return if new_paths.empty? # can't reach enemy
+      paths = new_paths
+      visited += paths.map { |pos, _| pos.last }
+      candidates = paths.select { |pos, _| targets.include? pos.last }
+      next unless candidates.any?
+
+      nearest = candidates.min_by do |pos, steps|
+        pos.map(&:reverse)
+      end
+      break
+    end
+    step = nearest[1][0]
+
+    target_pos = nearest.first.last
+    paths = [[[target_pos], []]]
+    previously_visited = visited.clone
+    visited = [target_pos]
+    loop do
+      new_paths = []
+
+      paths.each do |pos, steps|
+        pos.last.neighbours_with_step.map do |neighbour, step|
+          next if visited.include?(neighbour) or !previously_visited.include?(neighbour)
+          new_paths.push [pos + [neighbour], steps + [step]]
+          visited.push neighbour
+        end
+      end
+      if new_paths.empty?
+        require 'pry-byebug'; binding.pry
+      end
+      paths = new_paths
+      visited += paths.map { |pos, _| pos.last }
+      return_candidates = paths.select { |pos, _| pos.last == start }
+      next unless return_candidates.any?
+
+      pos_to_go = return_candidates.map { |pos, _| pos[-2] }.min_by(&:reverse)
+
+      (_, step_to_take) = start.neighbours_with_step.find { |neighbour, step| neighbour == pos_to_go }
+
+      yield step_to_take
+      return
+    end
+  end
+
   def initialize(lines)
     @floors = []
     @monsters = []
@@ -15,14 +73,16 @@ class Solver
       end
     end
     debug
-    99999999.times do |round|
+    round = 0
+    loop do
+      round += 1
       for monster in @monsters.clone
+        # print "#{monster.text2} "
         enemies = enemies_of(monster.char)
         if enemies.none?
-          puts "game over after #{round+1} rounds"
           debug
           hitpoints = @monsters.map(&:hitpoints).sum
-          puts "Outcome: #{round+1} * #{hitpoints} = #{(round+1)* hitpoints}"
+          puts "Outcome: #{round} * #{hitpoints} = #{(round)* hitpoints}"
           exit
         end
 
@@ -31,7 +91,7 @@ class Solver
         unless hittable
           in_range = enemies.flat_map { |enemy| in_range_of(enemy.pos) }.uniq
           in_range.specialsort!
-          move(monster.pos, in_range) do |step|
+          calculate_move(monster.pos, in_range) do |step|
             @floors.push monster.pos
             monster.move step
             @floors.delete monster.pos
@@ -47,39 +107,8 @@ class Solver
           end
         end
       end
-      puts "after #{round+1} rounds"
+      puts "after #{round} rounds"
       debug
-    end
-  end
-
-  def move(start, targets)
-    paths = [[[start], []]]
-    visited = [start]
-    loop do
-      paths.map! do |pos, steps|
-        pos.last.neighbours_with_step.map do |neighbour, step|
-          next if visited.include?(neighbour) or !@floors.include?(neighbour)
-          [pos + [neighbour], steps + [step]]
-        end
-      end
-      paths.flatten!(1)
-      paths.reject!(&:nil?)
-
-      if paths.empty?
-        return
-      end
-
-      visited += paths.map { |pos, _| pos.last }
-
-      found = paths.select { |pos, _| targets.include? pos.last }
-      if found.any?
-        path = found.min_by do |pos, steps|
-          pos.map(&:reverse)
-        end
-        step = path[1][0]
-        yield step
-        return
-      end
     end
   end
 
@@ -92,7 +121,18 @@ class Solver
   end
 
   def debug
+    print "   "
+    for x in 0..@maxx
+      print "#{(x/10).to_s}"
+    end
+    puts
+    print "   "
+    for x in 0..@maxx
+      print "#{(x%10).to_s}"
+    end
+    puts
     for y in 0..@maxy
+      print "#{y.to_s.rjust(2)} "
       for x in 0..@maxx
         pos = [x, y]
         char = '#'
@@ -185,6 +225,16 @@ class Monster
   def text
     "#{@char}(#{@hitpoints})"
   end
+
+  def text2
+    "#{char}#{pos.x}:#{pos.y}"
+  end
 end
 
-Solver.new(File.readlines('example7.txt').map(&:chomp))
+Solver.new(File.readlines('example5.txt').map(&:chomp))
+# Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430   Expected: 37 * 982 = 36334
+
+# 81 * 2875 = 232875 -> too high
+#             230000 -> too high
+# Solver.new(File.readlines('input.txt').map(&:chomp))
+
