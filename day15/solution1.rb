@@ -22,7 +22,7 @@ class Solver
       next unless candidates.any?
 
       nearest = candidates.min_by do |pos, steps|
-        pos.map(&:reverse)
+        pos[-2].reverse
       end
       break
     end
@@ -72,7 +72,6 @@ class Solver
         @maxy = [@maxy, y].max
       end
     end
-    debug
     @round = 0
     loop do
       @monsters.specialsort_by_pos!
@@ -111,13 +110,14 @@ class Solver
       @round += 1
       puts "#{@round} rounds..." if @round % 10 == 0
       # puts "after #{@round} rounds"
+      # debug
+      # exit
       return game_over if @monsters.map(&:char).uniq.size < 2
-      debug
     end
   end
 
   def game_over
-    debug
+    # debug
     hitpoints = @monsters.map(&:hitpoints).sum
     puts "Outcome: #{@round} * #{hitpoints} = #{(@round)* hitpoints}"
   end
@@ -131,7 +131,6 @@ class Solver
   end
 
   def debug
-    return
     print "   "
     for x in 0..@maxx
       print "#{(x/10).to_s}"
@@ -253,5 +252,5 @@ Solver.new(File.readlines('example10.txt').map(&:chomp))
 #             230000 -> too high
 # Outcome: 81 * 2773 = 224613 --> wrong
 # Outcome: 80 * 2773 = 221840 --> too low
+# Outcome: 79 * 2692 = 212668 --> wrong
 Solver.new(File.readlines('input.txt').map(&:chomp))
-
