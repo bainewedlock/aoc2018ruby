@@ -75,15 +75,19 @@ class Solver
     debug
     @round = 0
     loop do
-      @round += 1
       @monsters.specialsort_by_pos!
-      for monster in @monsters.clone
+      for monster_pos in @monsters.map(&:pos)
+        monster = @monsters.at(monster_pos)
+        next if monster.nil? # was killed
         enemies = enemies_of(monster.char)
-        game_over if enemies.none?
+        return game_over if enemies.none?
 
         hittable = enemies.find { |enemy| monster.pos.neighbours.include? enemy.pos }
 
         unless hittable
+          any_enemy_reachable = enemies.any? { |enemy| (enemy.pos.neighbours & @floors).size > 0 }
+          next unless any_enemy_reachable # performance
+
           in_range = enemies.flat_map { |enemy| in_range_of(enemy.pos) }.uniq
           in_range.specialsort!
           calculate_move(monster.pos, in_range) do |step|
@@ -104,8 +108,10 @@ class Solver
           end
         end
       end
-      puts "after #{@round} rounds"
-      game_over if @monsters.map(&:char).uniq.size < 2
+      @round += 1
+      puts "#{@round} rounds..." if @round % 10 == 0
+      # puts "after #{@round} rounds"
+      return game_over if @monsters.map(&:char).uniq.size < 2
       debug
     end
   end
@@ -114,7 +120,6 @@ class Solver
     debug
     hitpoints = @monsters.map(&:hitpoints).sum
     puts "Outcome: #{@round} * #{hitpoints} = #{(@round)* hitpoints}"
-    exit
   end
 
   def in_range_of(pos)
@@ -126,6 +131,7 @@ class Solver
   end
 
   def debug
+    return
     print "   "
     for x in 0..@maxx
       print "#{(x/10).to_s}"
@@ -160,7 +166,8 @@ end
 class Array
   def at(pos)
     found = find { |item| item.pos == pos }
-    yield found if found
+    yield found if found && block_given?
+    return found
   end
 
   def specialsort_by_pos!
@@ -222,7 +229,7 @@ class Monster
 
   def damage(amount)
     @hitpoints -= amount
-    puts "#{@char}:#{@hitpoints}" if @pos == [5, 4]
+    # puts "#{@char}:#{@hitpoints}" if @pos == [5, 4]
     yield if @hitpoints <= 0
   end
 
@@ -235,11 +242,16 @@ class Monster
   end
 end
 
-# Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730 (correct)
-Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430   Expected: 37 * 982 = 36334
-# Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730 (correct)
+Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730
+Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430
+Solver.new(File.readlines('example7.txt').map(&:chomp)) # Outcome: 47 * 859 = 4037
+Solver.new(File.readlines('example8.txt').map(&:chomp)) # Outcome: 36 * 793 = 28548
+Solver.new(File.readlines('example9.txt').map(&:chomp))
+Solver.new(File.readlines('example10.txt').map(&:chomp))
 
 # 81 * 2875 = 232875 -> too high
 #             230000 -> too high
-# Solver.new(File.readlines('input.txt').map(&:chomp))
+# Outcome: 81 * 2773 = 224613 --> wrong
+# Outcome: 80 * 2773 = 221840 --> too low
+Solver.new(File.readlines('input.txt').map(&:chomp))
 
