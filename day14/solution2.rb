@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require_relative 'recipes'
 
 class Solver
@@ -26,7 +27,7 @@ class Solver
 
   def debug
     # puts @recipes.debug
-    puts @recipes.size if @recipes.size % 1000 == 0
+    # puts @recipes.size if @recipes.size % 1000 == 0
   end
 end
 
@@ -45,11 +46,9 @@ class CheatCode
   end
 
   def press_key(number)
-    @recorded = @recorded.last(@sequence.size-1)
+    @recorded = @recorded.last(@sequence.size - 1)
     @recorded.push number.to_s
-    if @recorded == @sequence
-      yield
-    end
+    yield if @recorded == @sequence
   end
 
   def size
@@ -62,4 +61,3 @@ Solver.new(CheatCode.new('01245'))
 Solver.new(CheatCode.new('92510'))
 Solver.new(CheatCode.new('59414'))
 Solver.new(CheatCode.new('360781'))
-
