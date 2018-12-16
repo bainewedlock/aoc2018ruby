@@ -140,7 +140,7 @@ class Array
   end
 
   def neighbours_with_step
-    [:right, :left, :down, :up].map do |step|
+    %i[right left down up].map do |step|
       [send(step), step]
     end
   end
@@ -187,4 +187,4 @@ class Monster
   end
 end
 
-Solver.new(File.readlines('input.txt').map(&:chomp))
+Solver.new(File.readlines('example7.txt').map(&:chomp))
