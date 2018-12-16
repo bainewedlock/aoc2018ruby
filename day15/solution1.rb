@@ -39,7 +39,7 @@ class Solver
         pos.last.neighbours_with_step.map do |neighbour, step|
           next if visited.include?(neighbour) or !previously_visited.include?(neighbour)
           new_paths.push [pos + [neighbour], steps + [step]]
-          visited.push neighbour
+          visited.push neighbour unless start == neighbour
         end
       end
       if new_paths.empty?
@@ -73,18 +73,13 @@ class Solver
       end
     end
     debug
-    round = 0
+    @round = 0
     loop do
-      round += 1
+      @round += 1
+      @monsters.specialsort_by_pos!
       for monster in @monsters.clone
-        # print "#{monster.text2} "
         enemies = enemies_of(monster.char)
-        if enemies.none?
-          debug
-          hitpoints = @monsters.map(&:hitpoints).sum
-          puts "Outcome: #{round} * #{hitpoints} = #{(round)* hitpoints}"
-          exit
-        end
+        game_over if enemies.none?
 
         hittable = enemies.find { |enemy| monster.pos.neighbours.include? enemy.pos }
 
@@ -98,7 +93,9 @@ class Solver
           end
         end
 
-        hittable = enemies.select { |enemy| monster.pos.neighbours.include? enemy.pos }.min_by { |enemy| [enemy.hitpoints, enemy.pos.y, enemy.pos.x] }
+        hittable = enemies
+          .select { |enemy| monster.pos.neighbours.include? enemy.pos }
+          .min_by { |enemy| [enemy.hitpoints, enemy.pos.y, enemy.pos.x] }
 
         if hittable
           hittable.damage(3) do
@@ -107,9 +104,17 @@ class Solver
           end
         end
       end
-      puts "after #{round} rounds"
+      puts "after #{@round} rounds"
+      game_over if @monsters.map(&:char).uniq.size < 2
       debug
     end
+  end
+
+  def game_over
+    debug
+    hitpoints = @monsters.map(&:hitpoints).sum
+    puts "Outcome: #{@round} * #{hitpoints} = #{(@round)* hitpoints}"
+    exit
   end
 
   def in_range_of(pos)
@@ -149,7 +154,6 @@ class Solver
         .map(&:text).join(", ")
       puts
     end
-    @monsters.specialsort_by_pos!
   end
 end
 
@@ -231,8 +235,9 @@ class Monster
   end
 end
 
-Solver.new(File.readlines('example5.txt').map(&:chomp))
-# Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430   Expected: 37 * 982 = 36334
+# Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730 (correct)
+Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430   Expected: 37 * 982 = 36334
+# Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730 (correct)
 
 # 81 * 2875 = 232875 -> too high
 #             230000 -> too high
