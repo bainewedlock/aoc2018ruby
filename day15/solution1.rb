@@ -22,11 +22,11 @@ class Solver
       next unless candidates.any?
 
       nearest = candidates.min_by do |pos, steps|
-        pos[-2].reverse
+        pos[-1].reverse
       end
       break
     end
-    step = nearest[1][0]
+    # step = nearest[1][0]
 
     target_pos = nearest.first.last
     paths = [[[target_pos], []]]
@@ -35,6 +35,7 @@ class Solver
     loop do
       new_paths = []
 
+      # require 'pry-byebug'; binding.pry
       paths.each do |pos, steps|
         pos.last.neighbours_with_step.map do |neighbour, step|
           next if visited.include?(neighbour) or !previously_visited.include?(neighbour)
