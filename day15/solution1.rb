@@ -1,33 +1,62 @@
 # frozen_string_literal: true
 
 class Solver
-  def floodfill(start, goals, map, return_all_paths)
-    paths = [[start]]
-    visited = [start]
-    while paths.any?
-      new_paths = []
-      paths.each do |path|
-        path.last.neighbours.map do |neighbour|
-          next if visited.include?(neighbour) || !map.include?(neighbour)
-          new_paths.push path + [neighbour]
-          visited.push neighbour unless goals.include? neighbour || return_all_paths
+  def initialize(lines)
+    parse_input lines
+
+    @round = 0
+    do_one_round until @game_over
+
+    report
+  end
+
+  def do_one_round
+    for monster in @monsters.sort_by(&:pos)
+      monster.engage(@monsters) do |enemies|
+        unless enemies.any?
+          @game_over = true unless enemies.any?
+          return
         end
+        try_move(monster, enemies) unless monster.can_attack?(enemies)
+        try_attack(monster, enemies)
       end
-      paths = new_paths
-      visited += paths.map(&:last) if return_all_paths
-      leading_to_goal = paths.select { |path| goals.include? path.last }
-      return [leading_to_goal, visited] if leading_to_goal.any?
+    end
+    finish_round
+    @game_over = true if we_have_a_winner
+  end
+
+  def we_have_a_winner
+    @monsters.map(&:char).uniq.size < 2
+  end
+
+  def finish_round
+    @round += 1
+    puts "#{@round} rounds..." if @round % 10 == 0
+  end
+
+  def try_move(monster, enemies)
+    target_positions = enemies.flat_map { |enemy| enemy.adjacent(@floors) }
+    calculate_move(monster.pos, target_positions) do |step|
+      @floors.push monster.pos
+      monster.move(step)
+      @floors.delete monster.pos
+    end
+  end
+
+  def try_attack(monster, enemies)
+    monster.attack(enemies) do |killed|
+      @floors.push killed.pos
+      @monsters.delete killed
     end
   end
 
   def calculate_move(start, targets)
-    (paths, visited) = floodfill(start, targets, @floors, false)
+    (paths, visited) = floodfill(start, targets.uniq, @floors, false)
     return if paths.nil?
     target_pos = paths.map(&:last).min
 
     (paths,) = floodfill(target_pos, [start], visited, true)
     pos_to_go = paths.map { |path| path[-2] }.min
-
     yield all_directions.find { |step| start.send(step) == pos_to_go }
   end
 
@@ -48,58 +77,28 @@ class Solver
     end
   end
 
-  def initialize(lines)
-    parse_input lines
-
-    @round = 0
-    tick until @game_over
-
-    report
-  end
-
   def report
     hitpoints = @monsters.map(&:hitpoints).sum
     puts "Outcome: #{@round} * #{hitpoints} = #{@round * hitpoints}"
   end
+end
 
-  def tick
-    @monsters.sort_by! &:pos
-    for monster in @monsters.clone
-      next if monster.hitpoints <= 0
-      enemies = @monsters.reject { |candidate| candidate.char == monster.char }
-      if enemies.none?
-        @game_over = true
-        return
-      end
-
-      hittable = enemies.find { |enemy| monster.pos.neighbours.include? enemy.pos }
-
-      unless hittable
-        any_enemy_reachable = enemies.any? { |enemy| !(enemy.pos.neighbours & @floors).empty? }
-        next unless any_enemy_reachable # performance
-
-        in_range = enemies.flat_map { |enemy| enemy.pos.neighbours & @floors }.uniq.sort
-        calculate_move(monster.pos, in_range) do |step|
-          @floors.push monster.pos
-          monster.move step
-          @floors.delete monster.pos
-        end
-      end
-
-      hittable = enemies
-                 .select { |enemy| monster.pos.neighbours.include? enemy.pos }
-                 .min_by { |enemy| [enemy.hitpoints, enemy.pos.y, enemy.pos.x] }
-
-      next unless hittable
-      hittable.damage(3) do
-        @floors.push hittable.pos
-        @monsters.delete(hittable)
+def floodfill(start, goals, map, return_all_paths)
+  paths = [[start]]
+  visited = [start]
+  while paths.any?
+    new_paths = []
+    paths.each do |path|
+      path.last.neighbours.map do |neighbour|
+        next if visited.include?(neighbour) || !map.include?(neighbour)
+        new_paths.push path + [neighbour]
+        visited.push neighbour unless goals.include? neighbour || return_all_paths
       end
     end
-    @round += 1
-    puts "#{@round} rounds..." if @round % 10 == 0 && @round > 50
-
-    @game_over = true if @monsters.map(&:char).uniq.size < 2
+    paths = new_paths
+    visited += paths.map(&:last) if return_all_paths
+    leading_to_goal = paths.select { |path| goals.include? path.last }
+    return [leading_to_goal, visited] if leading_to_goal.any?
   end
 end
 
@@ -153,13 +152,39 @@ class Monster
     @hitpoints = 200
   end
 
-  def move(direction)
-    @pos = @pos.send(direction)
+  def select_enemies(monsters)
+    monsters.reject { |candidate| candidate.char == char }
   end
 
-  def damage(amount)
-    @hitpoints -= amount
-    yield if @hitpoints <= 0
+  def can_attack?(enemies)
+    enemies.any? { |enemy| pos.neighbours.include? enemy.pos }
+  end
+
+  def attack(enemies)
+    hittable = enemies
+               .select { |enemy| pos.neighbours.include? enemy.pos }
+               .min_by { |enemy| [enemy.hitpoints, enemy.pos] }
+    if hittable
+      hittable.damage
+      yield hittable if hittable.hitpoints <= 0
+    end
+  end
+
+  def damage
+    @hitpoints -= 3
+  end
+
+  def move(step)
+    @pos = @pos.send(step)
+  end
+
+  def adjacent(floors)
+    floors & pos.neighbours
+  end
+
+  def engage(monsters)
+    return if hitpoints <= 0
+    yield select_enemies(monsters)
   end
 end
 
