@@ -1,94 +1,105 @@
 # frozen_string_literal: true
 
 class Solver
-  def floodfill(start, goals, map, something)
-    paths = [[[start], []]]
+  def floodfill(start, goals, map, return_all_paths)
+    paths = [[start]]
     visited = [start]
-    loop do
+    while paths.any?
       new_paths = []
-      paths.each do |pos, steps|
-        pos.last.neighbours_with_step.map do |neighbour, step|
+      paths.each do |path|
+        path.last.neighbours.map do |neighbour|
           next if visited.include?(neighbour) || !map.include?(neighbour)
-          new_paths.push [pos + [neighbour], steps + [step]]
-          visited.push neighbour unless goals.include? neighbour || something
+          new_paths.push path + [neighbour]
+          visited.push neighbour unless goals.include? neighbour || return_all_paths
         end
       end
-      yield if new_paths.empty? # can't reach enemy
       paths = new_paths
-      visited += paths.map { |pos, _| pos.last }
-      return_candidates = paths.select { |pos, _| goals.include? pos.last }
-      next unless return_candidates.any?
-      return [return_candidates.map { |pos, _| pos }, visited]
+      visited += paths.map(&:last) if return_all_paths
+      leading_to_goal = paths.select { |path| goals.include? path.last }
+      return [leading_to_goal, visited] if leading_to_goal.any?
     end
   end
 
   def calculate_move(start, targets)
-    (xx, visited) = floodfill(start, targets, @floors, false) do
-      return
-    end
-    target_pos = xx.min_by{|pos| pos[-1]}.last
+    (paths, visited) = floodfill(start, targets, @floors, false)
+    return if paths.nil?
+    target_pos = paths.map(&:last).min
 
-    (xx, _) = floodfill(target_pos, [start], visited, true)
-    pos_to_go = xx.map{|pos|pos[-2]}.min
-    (_, step_to_take) = start.neighbours_with_step.find { |neighbour, _step| neighbour == pos_to_go }
-    yield step_to_take
+    (paths,) = floodfill(target_pos, [start], visited, true)
+    pos_to_go = paths.map { |path| path[-2] }.min
+
+    yield all_directions.find { |step| start.send(step) == pos_to_go }
+  end
+
+  def parse_input(lines)
+    @floors = []
+    @monsters = []
+    lines.each.map.with_index do |line, y|
+      line.chars.map.with_index do |char, x|
+        parse_char char, make_pos(x, y)
+      end
+    end
+  end
+
+  def parse_char(char, pos)
+    case char
+    when '.' then @floors.push(pos)
+    when /G|E/ then @monsters.push(Monster.new(pos, char))
+    end
   end
 
   def initialize(lines)
-    @floors = []
-    @monsters = []
-    @maxx = 0
-    @maxy = 0
-    lines.each.map.with_index do |line, y|
-      line.chars.map.with_index do |char, x|
-        pos = make_pos(x, y)
-        @floors.push(pos) if char == '.'
-        @monsters.push(Monster.new(pos, char)) if 'GE'.include? char
-        @maxx = [@maxx, pos.x].max
-        @maxy = [@maxy, pos.y].max
-      end
-    end
+    parse_input lines
+
     @round = 0
-    loop do
-      @monsters.sort_by!(&:pos)
-      for monster in @monsters.clone
-        next if monster.hitpoints <= 0
-        enemies = @monsters.reject { |candidate| candidate.char == monster.char }
-        return game_over if enemies.none?
+    tick until @game_over
 
-        hittable = enemies.find { |enemy| monster.pos.neighbours.include? enemy.pos }
-
-        unless hittable
-          any_enemy_reachable = enemies.any? { |enemy| !(enemy.pos.neighbours & @floors).empty? }
-          next unless any_enemy_reachable # performance
-
-          in_range = enemies.flat_map { |enemy| enemy.pos.neighbours & @floors}.uniq.sort
-          calculate_move(monster.pos, in_range) do |step|
-            @floors.push monster.pos
-            monster.move step
-            @floors.delete monster.pos
-          end
-        end
-
-        hittable = enemies
-                   .select { |enemy| monster.pos.neighbours.include? enemy.pos }
-                   .min_by { |enemy| [enemy.hitpoints, enemy.pos.y, enemy.pos.x] }
-
-        next unless hittable
-        hittable.damage(3) do
-          @floors.push hittable.pos
-          @monsters.delete(hittable)
-        end
-      end
-      @round += 1
-      puts "#{@round} rounds..." if @round % 10 == 0 && @round > 50
-      return game_over if @monsters.map(&:char).uniq.size < 2
-    end
+    report
   end
 
-  def game_over
+  def report
     hitpoints = @monsters.map(&:hitpoints).sum
     puts "Outcome: #{@round} * #{hitpoints} = #{@round * hitpoints}"
+  end
+
+  def tick
+    @monsters.sort_by! &:pos
+    for monster in @monsters.clone
+      next if monster.hitpoints <= 0
+      enemies = @monsters.reject { |candidate| candidate.char == monster.char }
+      if enemies.none?
+        @game_over = true
+        return
+      end
+
+      hittable = enemies.find { |enemy| monster.pos.neighbours.include? enemy.pos }
+
+      unless hittable
+        any_enemy_reachable = enemies.any? { |enemy| !(enemy.pos.neighbours & @floors).empty? }
+        next unless any_enemy_reachable # performance
+
+        in_range = enemies.flat_map { |enemy| enemy.pos.neighbours & @floors }.uniq.sort
+        calculate_move(monster.pos, in_range) do |step|
+          @floors.push monster.pos
+          monster.move step
+          @floors.delete monster.pos
+        end
+      end
+
+      hittable = enemies
+                 .select { |enemy| monster.pos.neighbours.include? enemy.pos }
+                 .min_by { |enemy| [enemy.hitpoints, enemy.pos.y, enemy.pos.x] }
+
+      next unless hittable
+      hittable.damage(3) do
+        @floors.push hittable.pos
+        @monsters.delete(hittable)
+      end
+    end
+    @round += 1
+    puts "#{@round} rounds..." if @round % 10 == 0 && @round > 50
+
+    @game_over = true if @monsters.map(&:char).uniq.size < 2
   end
 end
 
@@ -102,12 +113,8 @@ class Array
   end
 
   def neighbours
-    neighbours_with_step.map(&:first)
-  end
-
-  def neighbours_with_step
-    %i[right left down up].map do |step|
-      [send(step), step]
+    all_directions.map do |step|
+      send(step)
     end
   end
 
@@ -126,6 +133,10 @@ class Array
   def down
     [y + 1, x]
   end
+end
+
+def all_directions
+  %i[right left down up]
 end
 
 def make_pos(x, y)
