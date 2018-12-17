@@ -26,7 +26,6 @@ class Solver
       end
       break
     end
-    # step = nearest[1][0]
 
     target_pos = nearest.first.last
     paths = [[[target_pos], []]]
@@ -35,7 +34,6 @@ class Solver
     loop do
       new_paths = []
 
-      # require 'pry-byebug'; binding.pry
       paths.each do |pos, steps|
         pos.last.neighbours_with_step.map do |neighbour, step|
           next if visited.include?(neighbour) or !previously_visited.include?(neighbour)
@@ -76,9 +74,9 @@ class Solver
     @round = 0
     loop do
       @monsters.specialsort_by_pos!
-      for monster_pos in @monsters.map(&:pos)
-        monster = @monsters.at(monster_pos)
-        next if monster.nil? # was killed
+      for monster in @monsters.clone
+        # next if monster.nil? # was killed
+        next if monster.hitpoints <= 0 # was killed in this turn
         enemies = enemies_of(monster.char)
         return game_over if enemies.none?
 
@@ -242,10 +240,10 @@ class Monster
   end
 end
 
-Solver.new(File.readlines('example5.txt').map(&:chomp)) # Outcome: 47 * 590 = 27730
-Solver.new(File.readlines('example6.txt').map(&:chomp)) # Outcome: 38 * 985 = 37430
-Solver.new(File.readlines('example7.txt').map(&:chomp)) # Outcome: 47 * 859 = 4037
-Solver.new(File.readlines('example8.txt').map(&:chomp)) # Outcome: 36 * 793 = 28548
+Solver.new(File.readlines('example5.txt').map(&:chomp))
+Solver.new(File.readlines('example6.txt').map(&:chomp))
+Solver.new(File.readlines('example7.txt').map(&:chomp))
+Solver.new(File.readlines('example8.txt').map(&:chomp))
 Solver.new(File.readlines('example9.txt').map(&:chomp))
 Solver.new(File.readlines('example10.txt').map(&:chomp))
 
