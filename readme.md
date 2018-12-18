@@ -1,5 +1,3 @@
 Link: https://adventofcode.com/
 
 
-
-
