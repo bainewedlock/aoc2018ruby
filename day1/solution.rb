@@ -3,6 +3,7 @@ frequencies = {0 => 1}
 f = 0
 numbers = File.readlines("input.txt").map(&:to_i)
 
+count = 0
 loop do
   numbers.each do |n|
     f += n
@@ -13,6 +14,7 @@ loop do
       frequencies[f] = 1
     end
   end
-  puts "again"
+  count += 1
+  puts "again #{count}"
 end
 

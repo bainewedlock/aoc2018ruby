@@ -7,10 +7,58 @@ class Solver
     @ymax = map.map { |x, y| y }.max
     @map = map
     @visited = Set[]
-    pos = [500, 0]
-    search(pos)
+
+    start_pos = [499, 0]
+    @stack = [[:search, [start_pos]]]
+
+    while @stack.any?
+      (func, params) = @stack.pop
+      puts "popped: #{func}(#{params})"
+      case func
+      when :search
+        pos = params[0]
+        if pos.y > @ymax
+          next
+        end
+        visit pos
+        unless %i[left right down].any? { |direction| free?(pos.send(direction)) }
+          next
+        end
+        if @map.include? pos.down
+          @stack.push [:go_left, [pos, pos]]
+        else
+          @stack.push [:search, [pos.down]]
+        end
+      when :go_left
+        pos, mark = params
+        pos = params[0].left
+        if @map.include? pos
+          @stack.push [:go_right, [mark, mark]]
+        else
+          visit pos
+          @stack.push [:go_left, [pos, mark]]
+        end
+      when :go_right
+        pos, mark = params
+        pos = pos.right
+        if @map.include? pos
+          @stack.push [:foo, [pos, mark]]
+        else
+          visit pos
+          @stack.push [:go_right, [pos, mark]]
+        end
+      when :foo
+        pos, mark = params
+        puts "foo: #{pos} #{mark}"
+      end
+    end
+    puts "END"
     debug
-    puts "visited: #{(@visited-pos).size-1}"
+    puts "visited: #{(@visited - start_pos).size-1}"
+  end
+  
+  def what(msg)
+    puts "what: #{msg}"
   end
 
   def search(pos)
@@ -26,15 +74,18 @@ class Solver
     end
 
     unless @map.include? pos.down
-      case search(pos.down)
+      case search(pos.down) # CALL
       when :settle
-        return spread(pos)
+        debug
+        puts "CANCELLED"
+        exit
+        return spread(pos) # CALL
       else
         return :stop
       end
     end
 
-    return spread(pos)
+    return spread(pos) # CALL
   end
 
   def spread(center)
@@ -44,7 +95,7 @@ class Solver
     loop do
       pos = pos.left
       break if blocked? pos
-      case search(pos)
+      case search(pos) # CALL
       when :stop
         left_stop = true
         break
@@ -56,7 +107,7 @@ class Solver
     loop do
       pos = pos.right
       break if blocked? pos
-      case search(pos)
+      case search(pos) # CALL
       when :stop
         right_stop = true
         break
